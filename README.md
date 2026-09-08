@@ -2,6 +2,8 @@
 
 A high-performance, polished, and responsive 3-reel retro slot machine game built in **Unity 6 (6000.4.10f1)** using modern **C# OOP architecture**, **Text Mesh Pro**, and **Universal Render Pipeline (URP 2D)**.
 
+Direct play using : https://slot-game-wheat.vercel.app/
+
 ---
 
 ## 🎮 Game Overview & Features
@@ -98,7 +100,7 @@ Assets/
 2. Switch Platform to **WebGL**.
 3. Target output directory: `Build/WebGL`.
 4. Click **Build**.
-5. Once built, open `Build/WebGL/index.html` via a local web server (e.g. `python3 -m http.server 8000` inside `Build/WebGL/` and browse to `http://localhost:8000`).
+5. Once built, open `Build/WebGL/index.html` via a local web server (e.g. `python3 -m http.server 8000` inside `Build/WebGL/` and browse to `http://localhost:8000`) or play directly online on https://slot-game-wheat.vercel.app
 
 ---
 
