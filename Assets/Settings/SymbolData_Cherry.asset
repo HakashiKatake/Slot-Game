@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4d9cc4cb87bc469aad9ee1ce586613c, type: 3}
+  m_Name: SymbolData_Cherry
+  m_EditorClassIdentifier: Assembly-CSharp::SlotGame.Core.SymbolDataSO
+  symbolType: 0
+  displayName: Cherry
+  symbolSprite: {fileID: -5620835742497143143, guid: 6c92fe61006a347a7a17dd0890134c4a, type: 3}
+  themeColor: {r: 1, g: 0.2, b: 0.45, a: 1}
+  rngWeight: 24

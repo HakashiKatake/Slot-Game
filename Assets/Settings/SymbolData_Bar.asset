@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4d9cc4cb87bc469aad9ee1ce586613c, type: 3}
+  m_Name: SymbolData_Bar
+  m_EditorClassIdentifier: Assembly-CSharp::SlotGame.Core.SymbolDataSO
+  symbolType: 1
+  displayName: Bar
+  symbolSprite: {fileID: -4945717182177459964, guid: 36922e261c51147fe9dcd09e3e67b0c5, type: 3}
+  themeColor: {r: 0.35, g: 0.75, b: 1, a: 1}
+  rngWeight: 16

@@ -9,6 +9,8 @@ namespace SlotGame.Core
     /// </summary>
     public class SlotGameModel
     {
+        private readonly int[] _betAmounts;
+
         public int Balance { get; private set; }
         public int CurrentBet { get; private set; }
         public int SelectedBetIndex { get; private set; }
@@ -27,11 +29,15 @@ namespace SlotGame.Core
 
         public SlotGameModel(int initialBalance, int[] betAmounts, int defaultBetIndex = 0)
         {
+            if (betAmounts == null || betAmounts.Length == 0)
+            {
+                throw new ArgumentException("Bet amounts cannot be null or empty", nameof(betAmounts));
+            }
+
+            _betAmounts = betAmounts;
             Balance = initialBalance;
-            SelectedBetIndex = (betAmounts != null && betAmounts.Length > 0)
-                ? Math.Clamp(defaultBetIndex, 0, betAmounts.Length - 1)
-                : 0;
-            CurrentBet = (betAmounts != null && betAmounts.Length > 0) ? betAmounts[SelectedBetIndex] : 10;
+            SelectedBetIndex = Math.Clamp(defaultBetIndex, 0, _betAmounts.Length - 1);
+            CurrentBet = _betAmounts[SelectedBetIndex];
             LastWin = 0;
             TotalWon = 0;
             FreeSpinsRemaining = 0;
@@ -90,31 +96,45 @@ namespace SlotGame.Core
             OnWinChanged?.Invoke(0);
         }
 
-        public void CycleBet(int delta, int[] betAmounts)
+        public void CycleBet(int delta)
         {
-            if (betAmounts == null || betAmounts.Length == 0 || IsFreeSpinsActive) return;
-            if (CurrentState != SlotGameState.Idle) return;
+            if (IsFreeSpinsActive || CurrentState != SlotGameState.Idle) return;
 
-            int newIndex = Math.Clamp(SelectedBetIndex + delta, 0, betAmounts.Length - 1);
+            int newIndex = Math.Clamp(SelectedBetIndex + delta, 0, _betAmounts.Length - 1);
             if (newIndex != SelectedBetIndex)
             {
                 SelectedBetIndex = newIndex;
-                CurrentBet = betAmounts[SelectedBetIndex];
+                CurrentBet = _betAmounts[SelectedBetIndex];
                 OnBetChanged?.Invoke(CurrentBet);
             }
         }
 
-        public void SetMaxBet(int[] betAmounts)
+        public void SetMaxBet()
         {
-            if (betAmounts == null || betAmounts.Length == 0 || IsFreeSpinsActive) return;
-            if (CurrentState != SlotGameState.Idle) return;
+            if (IsFreeSpinsActive || CurrentState != SlotGameState.Idle) return;
 
-            int maxIndex = betAmounts.Length - 1;
+            int maxIndex = _betAmounts.Length - 1;
             if (SelectedBetIndex != maxIndex)
             {
                 SelectedBetIndex = maxIndex;
-                CurrentBet = betAmounts[SelectedBetIndex];
+                CurrentBet = _betAmounts[SelectedBetIndex];
                 OnBetChanged?.Invoke(CurrentBet);
+            }
+        }
+
+        public void SetBetDirect(int bet)
+        {
+            if (IsFreeSpinsActive || CurrentState != SlotGameState.Idle) return;
+
+            for (int i = 0; i < _betAmounts.Length; i++)
+            {
+                if (_betAmounts[i] == bet)
+                {
+                    SelectedBetIndex = i;
+                    CurrentBet = _betAmounts[SelectedBetIndex];
+                    OnBetChanged?.Invoke(CurrentBet);
+                    return;
+                }
             }
         }
 

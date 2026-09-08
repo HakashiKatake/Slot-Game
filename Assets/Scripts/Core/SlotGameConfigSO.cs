@@ -25,22 +25,41 @@ namespace SlotGame.Core
         [SerializeField] private float suspenseDelay = 0.7f;
 
         [Tooltip("Reel scroll speed during full spin (units/sec)")]
-        [SerializeField] private float spinSpeed = 2200f;
+        [SerializeField] private float spinSpeed = 1600f;
 
         [Tooltip("Distance in units between symbol cell centers")]
-        [SerializeField] private float symbolCellHeight = 140f;
+        [SerializeField] private float symbolCellHeight = 70f;
 
         [Tooltip("Anticipation nudge distance upward before rolling down")]
-        [SerializeField] private float anticipationDistance = 28f;
+        [SerializeField] private float anticipationDistance = 16f;
 
         [Tooltip("Duration of the anticipation pull-back (seconds)")]
         [SerializeField] private float anticipationDuration = 0.18f;
 
         [Tooltip("Overshoot bounce distance downward when stopping before snapping back")]
-        [SerializeField] private float bounceOvershootDistance = 22f;
+        [SerializeField] private float bounceOvershootDistance = 14f;
 
         [Tooltip("Duration of the overshoot bounce settlement (seconds)")]
-        [SerializeField] private float bounceDuration = 0.28f;
+        [SerializeField] private float bounceDuration = 0.26f;
+
+        [Header("Advanced Animation Tuning")]
+        [Tooltip("Deceleration phase duration when reel is stopping (seconds)")]
+        [SerializeField] private float stopDuration = 0.32f;
+
+        [Tooltip("Acceleration rate multiplier (higher = faster acceleration)")]
+        [SerializeField] private float accelerationMultiplier = 5f;
+
+        [Tooltip("Cell wrapping threshold multiplier (cellHeight * this value)")]
+        [SerializeField] private float wrapThresholdMultiplier = 2.5f;
+
+        [Tooltip("Win highlight flash duration (seconds)")]
+        [SerializeField] private float winHighlightDuration = 1.8f;
+
+        [Tooltip("Win tally animation duration (seconds)")]
+        [SerializeField] private float winTallyDuration = 0.6f;
+
+        [Tooltip("Auto free spin delay between spins (seconds)")]
+        [SerializeField] private float freeSpinDelay = 1.4f;
 
         public int StartingBalance => startingBalance;
         public int[] BetAmounts => betAmounts;
@@ -54,6 +73,12 @@ namespace SlotGame.Core
         public float AnticipationDuration => anticipationDuration;
         public float BounceOvershootDistance => bounceOvershootDistance;
         public float BounceDuration => bounceDuration;
+        public float StopDuration => stopDuration;
+        public float AccelerationMultiplier => accelerationMultiplier;
+        public float WrapThresholdMultiplier => wrapThresholdMultiplier;
+        public float WinHighlightDuration => winHighlightDuration;
+        public float WinTallyDuration => winTallyDuration;
+        public float FreeSpinDelay => freeSpinDelay;
 
         public void InitializeDefaults()
         {
@@ -63,12 +88,18 @@ namespace SlotGame.Core
             baseSpinDuration = 1.0f;
             reelStaggerDelay = 0.35f;
             suspenseDelay = 0.7f;
-            spinSpeed = 2200f;
-            symbolCellHeight = 140f;
-            anticipationDistance = 28f;
+            spinSpeed = 1600f;
+            symbolCellHeight = 80f;
+            anticipationDistance = 16f;
             anticipationDuration = 0.18f;
-            bounceOvershootDistance = 22f;
-            bounceDuration = 0.28f;
+            bounceOvershootDistance = 14f;
+            bounceDuration = 0.26f;
+            stopDuration = 0.32f;
+            accelerationMultiplier = 5f;
+            wrapThresholdMultiplier = 2.5f;
+            winHighlightDuration = 1.8f;
+            winTallyDuration = 0.6f;
+            freeSpinDelay = 1.4f;
         }
     }
 }

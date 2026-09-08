@@ -5,54 +5,34 @@ using SlotGame.Core;
 namespace SlotGame.Services
 {
     /// <summary>
-    /// Standard implementation of ISlotRngService using cryptographically/pseudo-random weighted sampling.
-    /// Ensures unpredictability and adheres to specified symbol weightings.
+    /// Weighted random number generator for reel outcomes.
+    /// Symbols with higher RngWeight appear more frequently.
     /// </summary>
-    public class StandardSlotRngService : ISlotRngService
+    public class SlotRngService
     {
-        private readonly Random _random;
-
-        public StandardSlotRngService(int? seed = null)
-        {
-            _random = seed.HasValue ? new Random(seed.Value) : new Random();
-        }
-
-        public SymbolType GenerateRandomSymbol(IReadOnlyList<SymbolDataSO> symbols)
-        {
-            if (symbols == null || symbols.Count == 0)
-            {
-                throw new ArgumentException("Symbols list cannot be null or empty.");
-            }
-
-            int totalWeight = 0;
-            for (int i = 0; i < symbols.Count; i++)
-            {
-                totalWeight += symbols[i].RngWeight;
-            }
-
-            int roll = _random.Next(0, totalWeight);
-            int accumulated = 0;
-
-            for (int i = 0; i < symbols.Count; i++)
-            {
-                accumulated += symbols[i].RngWeight;
-                if (roll < accumulated)
-                {
-                    return symbols[i].SymbolType;
-                }
-            }
-
-            return symbols[symbols.Count - 1].SymbolType;
-        }
+        private readonly Random _random = new Random();
 
         public SymbolType[] GenerateSpinResult(int reelCount, IReadOnlyList<SymbolDataSO> symbols)
         {
             var results = new SymbolType[reelCount];
             for (int i = 0; i < reelCount; i++)
-            {
-                results[i] = GenerateRandomSymbol(symbols);
-            }
+                results[i] = PickWeighted(symbols);
             return results;
+        }
+
+        private SymbolType PickWeighted(IReadOnlyList<SymbolDataSO> symbols)
+        {
+            int total = 0;
+            for (int i = 0; i < symbols.Count; i++) total += symbols[i].RngWeight;
+
+            int roll = _random.Next(0, total);
+            int accumulated = 0;
+            for (int i = 0; i < symbols.Count; i++)
+            {
+                accumulated += symbols[i].RngWeight;
+                if (roll < accumulated) return symbols[i].SymbolType;
+            }
+            return symbols[symbols.Count - 1].SymbolType;
         }
     }
 }

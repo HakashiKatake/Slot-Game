@@ -4,135 +4,75 @@ using SlotGame.Core;
 namespace SlotGame.Services
 {
     /// <summary>
-    /// Implements classic casino 3-reel slot evaluation logic with Wild 7s and Free Spins bonus triggers.
+    /// Evaluates a 3-reel payline against the payout table.
+    /// Classic rules: 3-of-a-kind wins, Sevens act as wilds, Cherries pay partial.
     /// </summary>
-    public class ClassicPayoutEvaluator : IPayoutEvaluator
+    public class PayoutEvaluator
     {
-        public PayoutResult Evaluate(
-            SymbolType[] paylineSymbols,
-            int currentBet,
-            bool isFreeSpin,
-            PayoutTableSO table)
+        public PayoutResult Evaluate(SymbolType[] reels, int bet, bool isFreeSpin, PayoutTableSO table)
         {
-            if (paylineSymbols == null || paylineSymbols.Length < 3 || table == null)
-            {
+            if (reels == null || reels.Length < 3 || table == null)
                 return PayoutResult.NoWin;
-            }
 
-            var s0 = paylineSymbols[0];
-            var s1 = paylineSymbols[1];
-            var s2 = paylineSymbols[2];
+            var s0 = reels[0]; var s1 = reels[1]; var s2 = reels[2];
 
-            // 1. Direct 3 of a kind match
+            // 3-of-a-kind
             if (s0 == s1 && s1 == s2)
-            {
-                return EvaluateThreeOfAKind(s0, currentBet, isFreeSpin, table, isWildSubstituted: false);
-            }
+                return EvaluateTriple(s0, bet, isFreeSpin, table, wild: false);
 
-            // 2. Wild Seven substitution (if enabled in paytable)
+            // Wild Seven substitution
             if (table.SevenIsWild)
             {
-                var nonSevenSymbols = paylineSymbols.Where(s => s != SymbolType.Seven).ToList();
-                int sevenCount = paylineSymbols.Count(s => s == SymbolType.Seven);
-
-                // If we have 1 or 2 Sevens, and all non-seven symbols are identical, it forms a 3-of-a-kind!
-                if (sevenCount > 0 && nonSevenSymbols.Count > 0)
-                {
-                    bool allSameNonSeven = nonSevenSymbols.All(s => s == nonSevenSymbols[0]);
-                    if (allSameNonSeven)
-                    {
-                        SymbolType targetSymbol = nonSevenSymbols[0];
-                        return EvaluateThreeOfAKind(targetSymbol, currentBet, isFreeSpin, table, isWildSubstituted: true);
-                    }
-                }
+                var nonSeven = reels.Where(s => s != SymbolType.Seven).ToList();
+                int sevens = reels.Count(s => s == SymbolType.Seven);
+                if (sevens > 0 && nonSeven.Count > 0 && nonSeven.All(s => s == nonSeven[0]))
+                    return EvaluateTriple(nonSeven[0], bet, isFreeSpin, table, wild: true);
             }
 
-            // 3. Cherry partial matches (Any 2 or Any 1 Cherry)
-            int cherryCount = paylineSymbols.Count(s => s == SymbolType.Cherry);
-            if (cherryCount == 2)
+            // Cherry partials
+            int cherries = reels.Count(s => s == SymbolType.Cherry);
+            if (cherries == 2)
             {
-                int mult = table.TwoCherriesMultiplier;
-                if (isFreeSpin) mult *= table.FreeSpinsMultiplier;
-                int payout = mult * currentBet;
-                string desc = isFreeSpin ? $"2 Cherries! (Free Spin 2x) Win {payout}!" : $"2 Cherries! Win {payout}!";
-                return new PayoutResult(true, payout, mult, WinTier.SmallWin, desc, false, false, 0, SymbolType.Cherry);
+                int mult = table.TwoCherriesMultiplier * (isFreeSpin ? table.FreeSpinsMultiplier : 1);
+                return new PayoutResult(true, mult * bet, mult, WinTier.SmallWin,
+                    $"2 Cherries! Win {mult * bet}!", false, false, 0, SymbolType.Cherry);
             }
-            else if (cherryCount == 1)
+            if (cherries == 1)
             {
-                int mult = table.OneCherryMultiplier;
-                if (isFreeSpin) mult *= table.FreeSpinsMultiplier;
-                int payout = mult * currentBet;
-                string desc = isFreeSpin ? $"1 Cherry! (Free Spin 2x) Win {payout}!" : $"1 Cherry! Win {payout}!";
-                return new PayoutResult(true, payout, mult, WinTier.SmallWin, desc, false, false, 0, SymbolType.Cherry);
+                int mult = table.OneCherryMultiplier * (isFreeSpin ? table.FreeSpinsMultiplier : 1);
+                return new PayoutResult(true, mult * bet, mult, WinTier.SmallWin,
+                    $"1 Cherry! Win {mult * bet}!", false, false, 0, SymbolType.Cherry);
             }
 
             return PayoutResult.NoWin;
         }
 
-        private PayoutResult EvaluateThreeOfAKind(
-            SymbolType symbol,
-            int currentBet,
-            bool isFreeSpin,
-            PayoutTableSO table,
-            bool isWildSubstituted)
+        private PayoutResult EvaluateTriple(SymbolType symbol, int bet, bool isFreeSpin, PayoutTableSO table, bool wild)
         {
-            int baseMult = 0;
-            WinTier tier = WinTier.MediumWin;
-            bool isJackpot = false;
-            bool isFreeSpinsTriggered = false;
-            int freeSpinsAwarded = 0;
-            string prefix = isWildSubstituted ? "WILD WIN! 3x " : "3x ";
+            int baseMult; WinTier tier; bool jackpot = false; bool freeSpins = false; int fsCount = 0;
+            string prefix = wild ? "WILD WIN! 3x " : "3x ";
 
             switch (symbol)
             {
                 case SymbolType.Seven:
-                    baseMult = table.ThreeSevensMultiplier;
-                    tier = WinTier.Jackpot;
-                    isJackpot = true;
-                    prefix = "JACKPOT! 3x SEVENS! ";
-                    break;
-
+                    baseMult = table.ThreeSevensMultiplier; tier = WinTier.Jackpot;
+                    jackpot = true; prefix = "JACKPOT! 3x SEVENS! "; break;
                 case SymbolType.Bell:
-                    baseMult = table.ThreeBellsMultiplier;
-                    tier = WinTier.BigWin;
-                    isFreeSpinsTriggered = true;
-                    freeSpinsAwarded = table.FreeSpinsOnThreeBells;
-                    prefix = $"BELL BONUS! +{freeSpinsAwarded} FREE SPINS! ";
-                    break;
-
+                    baseMult = table.ThreeBellsMultiplier; tier = WinTier.BigWin;
+                    freeSpins = true; fsCount = table.FreeSpinsOnThreeBells;
+                    prefix = $"BELL BONUS! +{fsCount} FREE SPINS! "; break;
                 case SymbolType.Bar:
-                    baseMult = table.ThreeBarsMultiplier;
-                    tier = WinTier.MediumWin;
-                    prefix += "BARS! ";
-                    break;
-
-                case SymbolType.Cherry:
-                    baseMult = table.ThreeCherriesMultiplier;
-                    tier = WinTier.MediumWin;
-                    prefix += "CHERRIES! ";
-                    break;
+                    baseMult = table.ThreeBarsMultiplier; tier = WinTier.MediumWin;
+                    prefix += "BARS! "; break;
+                default: // Cherry
+                    baseMult = table.ThreeCherriesMultiplier; tier = WinTier.MediumWin;
+                    prefix += "CHERRIES! "; break;
             }
 
-            int finalMult = baseMult;
-            if (isFreeSpin)
-            {
-                finalMult *= table.FreeSpinsMultiplier;
-                prefix += $"(Free Spin {table.FreeSpinsMultiplier}x Multiplier!) ";
-            }
-
-            int totalPayout = finalMult * currentBet;
-            string description = $"{prefix}Won {totalPayout} Credits ({finalMult}x)!";
-
-            return new PayoutResult(
-                true,
-                totalPayout,
-                finalMult,
-                tier,
-                description,
-                isJackpot,
-                isFreeSpinsTriggered,
-                freeSpinsAwarded,
-                symbol);
+            int mult = baseMult * (isFreeSpin ? table.FreeSpinsMultiplier : 1);
+            int payout = mult * bet;
+            string desc = $"{prefix}Won {payout} Credits ({mult}x)!";
+            return new PayoutResult(true, payout, mult, tier, desc, jackpot, freeSpins, fsCount, symbol);
         }
     }
 }

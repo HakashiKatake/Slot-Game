@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 710c8e208d0ce4d708a909c88ca627cc, type: 3}
+  m_Name: SlotGameConfig
+  m_EditorClassIdentifier: Assembly-CSharp::SlotGame.Core.SlotGameConfigSO
+  startingBalance: 1000
+  betAmounts: 0a000000140000003200000064000000
+  defaultBetIndex: 0
+  baseSpinDuration: 1
+  reelStaggerDelay: 0.35
+  suspenseDelay: 0.7
+  spinSpeed: 1600
+  symbolCellHeight: 80
+  anticipationDistance: 16
+  anticipationDuration: 0.18
+  bounceOvershootDistance: 14
+  bounceDuration: 0.26
+  stopDuration: 0.32
+  accelerationMultiplier: 5
+  wrapThresholdMultiplier: 2.5
+  winHighlightDuration: 1.8
+  winTallyDuration: 0.6
+  freeSpinDelay: 1.4

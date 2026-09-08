@@ -33,6 +33,7 @@ namespace SlotGame.Reels
         public event Action<SymbolType[]> OnAllReelsStopped;
 
         private SlotGameConfigSO _config;
+        private PayoutTableSO _payoutTable;
         private Dictionary<SymbolType, SymbolDataSO> _symbolLookup;
         private SymbolType[] _currentTargets;
         private int _stoppedReelCount;
@@ -40,19 +41,34 @@ namespace SlotGame.Reels
 
         public void Initialize(
             List<SymbolDataSO> symbols,
-            SlotGameConfigSO config)
+            SlotGameConfigSO config,
+            PayoutTableSO payoutTable)
         {
             _config = config;
+            _payoutTable = payoutTable;
             _symbolLookup = new Dictionary<SymbolType, SymbolDataSO>();
+
+            if (symbols == null || symbols.Count == 0)
+            {
+                Debug.LogError("[ReelsManager] No symbols provided to Initialize!");
+                return;
+            }
+
             for (int i = 0; i < symbols.Count; i++)
             {
-                _symbolLookup[symbols[i].SymbolType] = symbols[i];
+                if (symbols[i] != null)
+                {
+                    _symbolLookup[symbols[i].SymbolType] = symbols[i];
+                }
             }
 
             for (int i = 0; i < reels.Count; i++)
             {
-                reels[i].Initialize(i, symbols, config);
-                reels[i].OnReelStopped += HandleReelStopped;
+                if (reels[i] != null)
+                {
+                    reels[i].Initialize(i, symbols, config);
+                    reels[i].OnReelStopped += HandleReelStopped;
+                }
             }
         }
 
@@ -104,11 +120,11 @@ namespace SlotGame.Reels
             yield return new WaitForSeconds(stagger);
             StopReel(1);
 
-            // 4. Check for suspense on Reel 2: If reel 0 and reel 1 match Seven or Bell
+            // 4. Check for suspense: if reels 0 and 1 match a suspense trigger symbol
             float lastReelDelay = stagger;
-            if (_currentTargets.Length >= 2 && _currentTargets[0] == _currentTargets[1])
+            if (_currentTargets.Length >= 3 && _currentTargets[0] == _currentTargets[1])
             {
-                if (_currentTargets[0] == SymbolType.Seven || _currentTargets[0] == SymbolType.Bell)
+                if (_payoutTable != null && _payoutTable.ShouldTriggerSuspense(_currentTargets[0]))
                 {
                     lastReelDelay += suspense;
                 }

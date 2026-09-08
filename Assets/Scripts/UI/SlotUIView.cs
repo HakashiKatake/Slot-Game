@@ -35,6 +35,14 @@ namespace SlotGame.UI
         [SerializeField] private TextMeshProUGUI soundToggleText;
         [SerializeField] private Button resetCreditsButton;
 
+        [Header("Retro Quick Bet Menu & Corner HUD")]
+        [SerializeField] private TextMeshProUGUI cornerBalanceText;
+        [SerializeField] private GameObject quickBetPanel;
+        [SerializeField] private Button quickBet10Btn;
+        [SerializeField] private Button quickBet50Btn;
+        [SerializeField] private Button quickBet100Btn;
+        [SerializeField] private Button quickBetExitBtn;
+
         [Header("Win Celebration Popup")]
         [SerializeField] private GameObject winPopupPanel;
         [SerializeField] private TextMeshProUGUI winPopupTitle;
@@ -54,8 +62,15 @@ namespace SlotGame.UI
         public event Action OnSoundToggled;
         public event Action OnResetCreditsClicked;
         public event Action OnWinPopupClosed;
+        public event Action<int> OnQuickBetSelected;
 
         private Coroutine _winTallyCoroutine;
+        private SlotGameConfigSO _config;
+
+        public void Initialize(SlotGameConfigSO config)
+        {
+            _config = config;
+        }
 
         private void Awake()
         {
@@ -69,6 +84,13 @@ namespace SlotGame.UI
             if (winPopupCollectButton != null) winPopupCollectButton.onClick.AddListener(CloseWinPopup);
             if (paytableCloseButton != null) paytableCloseButton.onClick.AddListener(ClosePaytable);
 
+            if (quickBet10Btn != null) quickBet10Btn.onClick.AddListener(() => OnQuickBetSelected?.Invoke(10));
+            if (quickBet50Btn != null) quickBet50Btn.onClick.AddListener(() => OnQuickBetSelected?.Invoke(50));
+            if (quickBet100Btn != null) quickBet100Btn.onClick.AddListener(() => OnQuickBetSelected?.Invoke(100));
+            if (quickBetExitBtn != null) quickBetExitBtn.onClick.AddListener(() => {
+                if (quickBetPanel != null) quickBetPanel.SetActive(!quickBetPanel.activeSelf);
+            });
+
             if (winPopupPanel != null) winPopupPanel.SetActive(false);
             if (paytablePanel != null) paytablePanel.SetActive(false);
             if (freeSpinsBanner != null) freeSpinsBanner.SetActive(false);
@@ -79,6 +101,10 @@ namespace SlotGame.UI
             if (balanceText != null)
             {
                 balanceText.text = $"{balance:N0}";
+            }
+            if (cornerBalanceText != null)
+            {
+                cornerBalanceText.text = $"{balance:N0}G";
             }
         }
 
@@ -107,7 +133,7 @@ namespace SlotGame.UI
 
         private IEnumerator TallyScoreRoutine(int targetWin)
         {
-            float duration = 0.6f;
+            float duration = _config != null ? _config.WinTallyDuration : 0.6f;
             float elapsed = 0f;
             while (elapsed < duration)
             {
@@ -133,6 +159,9 @@ namespace SlotGame.UI
             if (betMinusButton != null) betMinusButton.interactable = canChangeBet;
             if (betPlusButton != null) betPlusButton.interactable = canChangeBet;
             if (maxBetButton != null) maxBetButton.interactable = canChangeBet;
+            if (quickBet10Btn != null) quickBet10Btn.interactable = canSpin;
+            if (quickBet50Btn != null) quickBet50Btn.interactable = canSpin;
+            if (quickBet100Btn != null) quickBet100Btn.interactable = canSpin;
         }
 
         public void UpdateFreeSpins(int remainingSpins)

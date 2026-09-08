@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4fbcf9794603424e88c33aeb86bbf26, type: 3}
+  m_Name: PayoutTable
+  m_EditorClassIdentifier: Assembly-CSharp::SlotGame.Core.PayoutTableSO
+  threeSevensMultiplier: 100
+  threeBellsMultiplier: 50
+  threeBarsMultiplier: 25
+  threeCherriesMultiplier: 15
+  twoCherriesMultiplier: 5
+  oneCherryMultiplier: 2
+  sevenIsWild: 1
+  freeSpinsOnThreeBells: 5
+  freeSpinsMultiplier: 2
+  suspenseTriggerSymbols: 0300000002000000

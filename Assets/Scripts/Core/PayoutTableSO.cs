@@ -40,6 +40,10 @@ namespace SlotGame.Core
         [Tooltip("Win multiplier applied during Free Spins")]
         [SerializeField] private int freeSpinsMultiplier = 2;
 
+        [Header("Suspense Triggers")]
+        [Tooltip("Symbols that trigger suspense delay on final reel when first 2 reels match")]
+        [SerializeField] private List<SymbolType> suspenseTriggerSymbols = new List<SymbolType> { SymbolType.Seven, SymbolType.Bell };
+
         public int ThreeSevensMultiplier => threeSevensMultiplier;
         public int ThreeBellsMultiplier => threeBellsMultiplier;
         public int ThreeBarsMultiplier => threeBarsMultiplier;
@@ -49,6 +53,12 @@ namespace SlotGame.Core
         public bool SevenIsWild => sevenIsWild;
         public int FreeSpinsOnThreeBells => freeSpinsOnThreeBells;
         public int FreeSpinsMultiplier => freeSpinsMultiplier;
+        public List<SymbolType> SuspenseTriggerSymbols => suspenseTriggerSymbols;
+
+        public bool ShouldTriggerSuspense(SymbolType symbolType)
+        {
+            return suspenseTriggerSymbols != null && suspenseTriggerSymbols.Contains(symbolType);
+        }
 
         public void InitializeDefaults()
         {
@@ -61,6 +71,7 @@ namespace SlotGame.Core
             sevenIsWild = true;
             freeSpinsOnThreeBells = 5;
             freeSpinsMultiplier = 2;
+            suspenseTriggerSymbols = new List<SymbolType> { SymbolType.Seven, SymbolType.Bell };
         }
     }
 }

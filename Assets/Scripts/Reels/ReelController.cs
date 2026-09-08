@@ -6,15 +6,6 @@ using SlotGame.Core;
 
 namespace SlotGame.Reels
 {
-    public enum ReelState
-    {
-        Idle,
-        Anticipation,
-        SpinningFast,
-        Stopping,
-        Bouncing
-    }
-
     /// <summary>
     /// Controls a single physical reel column.
     /// Manages infinite symbol wrapping, smooth anticipation pull-back, high-speed spin,
@@ -52,11 +43,17 @@ namespace SlotGame.Reels
 
         public void Initialize(int index, List<SymbolDataSO> symbols, SlotGameConfigSO config)
         {
+            if (config == null)
+            {
+                Debug.LogError($"[ReelController] Config is null on reel {index}! Cannot initialize.");
+                return;
+            }
+
             reelIndex = index;
             _availableSymbols = symbols;
             _config = config;
-            _cellHeight = config != null ? config.SymbolCellHeight : 140f;
-            _halfHeightThreshold = _cellHeight * 2.5f;
+            _cellHeight = _config.SymbolCellHeight;
+            _halfHeightThreshold = _cellHeight * _config.WrapThresholdMultiplier;
 
             if (reelContainer == null)
             {
@@ -122,8 +119,8 @@ namespace SlotGame.Reels
         {
             // 1. Anticipation: Pull up slightly before rolling down
             State = ReelState.Anticipation;
-            float antDist = _config != null ? _config.AnticipationDistance : 28f;
-            float antDur = _config != null ? _config.AnticipationDuration : 0.18f;
+            float antDist = _config.AnticipationDistance;
+            float antDur = _config.AnticipationDuration;
             float elapsed = 0f;
 
             Vector2[] startPositions = new Vector2[cells.Count];
@@ -148,9 +145,9 @@ namespace SlotGame.Reels
 
             // 2. High-speed continuous spin
             State = ReelState.SpinningFast;
-            float maxSpeed = _config != null ? _config.SpinSpeed : 2200f;
+            float maxSpeed = _config.SpinSpeed;
             float currentSpeed = 0f;
-            float accelRate = maxSpeed * 5f; // Reach max speed in ~0.2s
+            float accelRate = maxSpeed * _config.AccelerationMultiplier;
 
             while (!_stopRequested || _targetCell == null)
             {
@@ -162,13 +159,11 @@ namespace SlotGame.Reels
 
             // 3. Stopping phase: Decelerate target cell smoothly towards center (y = 0)
             State = ReelState.Stopping;
-            float stopDuration = 0.32f;
+            float stopDuration = _config.StopDuration;
             float stopElapsed = 0f;
 
             // Distance the target cell must travel to reach y = 0
             float initialTargetY = _targetCell.RectTransform.anchoredPosition.y;
-            // Target cell will travel from initialTargetY to 0
-            float totalTravelDistance = initialTargetY;
 
             while (stopElapsed < stopDuration)
             {
@@ -185,8 +180,8 @@ namespace SlotGame.Reels
 
             // 4. Juicy Bounce / Overshoot Phase
             State = ReelState.Bouncing;
-            float bounceDist = _config != null ? _config.BounceOvershootDistance : 22f;
-            float bounceDur = _config != null ? _config.BounceDuration : 0.28f;
+            float bounceDist = _config.BounceOvershootDistance;
+            float bounceDur = _config.BounceDuration;
             float bounceElapsed = 0f;
 
             while (bounceElapsed < bounceDur)
