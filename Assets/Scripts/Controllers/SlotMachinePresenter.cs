@@ -1,17 +1,20 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using TMPro;
 using SlotGame.Core;
 using SlotGame.Reels;
-using SlotGame.UI;
 using SlotGame.Audio;
 using SlotGame.Services;
 
 namespace SlotGame.Controllers
 {
     /// <summary>
-    /// MVP Presenter — orchestrates game flow between model, reels, UI, and audio.
+    /// Main controller for the slot machine game.
+    /// Connects user input (lever & quick bet buttons) to reel spinning,
+    /// evaluates outcomes via payout tables, and updates HUD / popup displays.
     /// </summary>
     public class SlotMachinePresenter : MonoBehaviour
     {
@@ -20,210 +23,309 @@ namespace SlotGame.Controllers
         [SerializeField] private PayoutTableSO payoutTable;
         [SerializeField] private List<SymbolDataSO> symbols = new();
 
-        [Header("Scene References")]
+        [Header("Settings")]
+        [SerializeField] private int startingBalance = 1000;
+        [SerializeField] private int defaultBet = 50;
+
+        [Header("Reels")]
         [SerializeField] private ReelsManager reelsManager;
-        [SerializeField] private SlotMachineView machineView;
-        [SerializeField] private SlotUIView uiView;
+
+        [Header("Lever")]
+        [SerializeField] private Button leverButton;
+        [SerializeField] private Image leverImage;
+        [SerializeField] private Sprite leverUpSprite;
+        [SerializeField] private Sprite leverDownSprite;
+
+        [Header("HUD")]
+        [SerializeField] private TextMeshProUGUI balanceText;
+        [SerializeField] private TextMeshProUGUI statusText;
+        [SerializeField] private TextMeshProUGUI winText;
+
+        [Header("Quick Bet Menu")]
+        [SerializeField] private GameObject quickBetPanel;
+        [SerializeField] private Button quickBet10Btn;
+        [SerializeField] private Button quickBet50Btn;
+        [SerializeField] private Button quickBet100Btn;
+        [SerializeField] private Button quickBetExitBtn;
+
+        [Header("Rules Popup")]
+        [SerializeField] private GameObject rulesPopupPanel;
+        [SerializeField] private Button rulesCloseBtn;
+
+        [Header("Win Popup")]
+        [SerializeField] private GameObject winPopupPanel;
+        [SerializeField] private TextMeshProUGUI winPopupTitle;
+        [SerializeField] private TextMeshProUGUI winPopupAmount;
+        [SerializeField] private TextMeshProUGUI winPopupDesc;
+        [SerializeField] private Button winPopupCollectBtn;
+
+        [Header("Audio")]
         [SerializeField] private SlotAudioService audioService;
 
-        private SlotGameModel _model;
+        // State
+        private int _balance;
+        private int _lastBet;
+        private int _currentBet;
+        private int _freeSpinsRemaining;
+        private bool _isSpinning;
+        private bool _isLeverPulling;
         private SlotRngService _rng;
         private PayoutEvaluator _evaluator;
-        private bool _isSpinning;
-        private Coroutine _autoSpinCoroutine;
 
-        private void Start()
+        public int Balance => _balance;
+        public int LastBet => _lastBet;
+        public bool IsSpinning => _isSpinning;
+
+        private void Awake()
         {
-            LoadSymbolsIfEmpty();
-            InitGame();
-        }
-
-        private void LoadSymbolsIfEmpty()
-        {
-#if UNITY_EDITOR
-            if (symbols == null || symbols.Count == 0)
-            {
-                symbols = new List<SymbolDataSO>();
-                foreach (var guid in UnityEditor.AssetDatabase.FindAssets("t:SymbolDataSO"))
-                {
-                    var path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
-                    var s = UnityEditor.AssetDatabase.LoadAssetAtPath<SymbolDataSO>(path);
-                    if (s != null) symbols.Add(s);
-                }
-            }
-#endif
-            symbols?.RemoveAll(s => s == null);
-        }
-
-        private void InitGame()
-        {
-            if (gameConfig == null) { Debug.LogError("[Presenter] gameConfig missing!"); return; }
-            if (payoutTable == null) { Debug.LogError("[Presenter] payoutTable missing!"); return; }
-
-            _model = new SlotGameModel(gameConfig.StartingBalance, gameConfig.BetAmounts, gameConfig.DefaultBetIndex);
+            Application.runInBackground = true;
+            _balance = startingBalance;
+            _lastBet = defaultBet;
             _rng = new SlotRngService();
             _evaluator = new PayoutEvaluator();
 
-            reelsManager.Initialize(symbols, gameConfig, payoutTable);
-            uiView?.Initialize(gameConfig);
+            // Setup button clicks
+            if (leverButton != null)
+                leverButton.onClick.AddListener(OnLeverClicked);
 
-            // Model → UI
-            _model.OnBalanceChanged += b => uiView?.UpdateBalance(b);
-            _model.OnBetChanged += b => uiView?.UpdateBet(b);
-            _model.OnWinChanged += w => uiView?.UpdateWin(w);
-            _model.OnFreeSpinsChanged += fs => uiView?.UpdateFreeSpins(fs);
+            if (quickBet10Btn != null)
+                quickBet10Btn.onClick.AddListener(() => OnQuickBetClicked(10));
 
-            // UI → Presenter
-            if (uiView != null)
-            {
-                uiView.OnSpinClicked += RequestSpin;
-                uiView.OnBetPlusClicked += () => { audioService?.PlayButtonClick(); _model.CycleBet(1); };
-                uiView.OnBetMinusClicked += () => { audioService?.PlayButtonClick(); _model.CycleBet(-1); };
-                uiView.OnMaxBetClicked += () => { audioService?.PlayButtonClick(); _model.SetMaxBet(); };
-                uiView.OnSoundToggled += () => { audioService?.ToggleMute(); uiView.UpdateSoundButton(audioService.IsMuted); };
-                uiView.OnResetCreditsClicked += ResetCredits;
-                uiView.OnQuickBetSelected += QuickBet;
-            }
-            if (machineView != null) machineView.OnLeverClicked += RequestSpin;
+            if (quickBet50Btn != null)
+                quickBet50Btn.onClick.AddListener(() => OnQuickBetClicked(50));
 
-            // Reel events
-            reelsManager.OnIndividualReelStopped += (idx, _) => audioService?.PlayReelStop(idx);
-            reelsManager.OnAllReelsStopped += OnAllReelsStopped;
+            if (quickBet100Btn != null)
+                quickBet100Btn.onClick.AddListener(() => OnQuickBetClicked(100));
 
-            // Initial UI
-            uiView?.UpdateBalance(_model.Balance);
-            uiView?.UpdateBet(_model.CurrentBet);
-            uiView?.UpdateWin(0, false);
-            uiView?.UpdateFreeSpins(0);
-            uiView?.SetStatusMessage("PULL LEVER OR CLICK SPIN!");
-            uiView?.SetControlsInteractable(true, true);
-            if (audioService != null) uiView?.UpdateSoundButton(audioService.IsMuted);
+            if (quickBetExitBtn != null)
+                quickBetExitBtn.onClick.AddListener(ToggleQuickBetMenu);
+
+            if (rulesCloseBtn != null)
+                rulesCloseBtn.onClick.AddListener(() => SetPopupActive(rulesPopupPanel, false));
+
+            if (winPopupCollectBtn != null)
+                winPopupCollectBtn.onClick.AddListener(() => SetPopupActive(winPopupPanel, false));
+
+            if (reelsManager != null)
+                reelsManager.OnAllReelsStopped += OnAllReelsStopped;
+        }
+
+        private void Start()
+        {
+            if (reelsManager != null && gameConfig != null && payoutTable != null)
+                reelsManager.Initialize(symbols, gameConfig, payoutTable);
+
+            UpdateBalanceUI();
+            SetStatus("PULL LEVER OR SELECT BET!");
+
+            if (winText != null) winText.gameObject.SetActive(false);
+            if (quickBetPanel != null) quickBetPanel.SetActive(true);
+            if (rulesPopupPanel != null) rulesPopupPanel.SetActive(true);
+            if (winPopupPanel != null) winPopupPanel.SetActive(false);
         }
 
         private void Update()
         {
             var kb = Keyboard.current;
-            if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame) && !_isSpinning)
-                RequestSpin();
+            if (!_isSpinning && kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
+                OnLeverClicked();
         }
 
         private void OnDestroy()
         {
-            if (reelsManager != null) reelsManager.OnAllReelsStopped -= OnAllReelsStopped;
-            if (machineView != null) machineView.OnLeverClicked -= RequestSpin;
-            if (uiView != null)
-            {
-                uiView.OnSpinClicked -= RequestSpin;
-                uiView.OnQuickBetSelected -= QuickBet;
-                uiView.OnResetCreditsClicked -= ResetCredits;
-            }
+            if (reelsManager != null)
+                reelsManager.OnAllReelsStopped -= OnAllReelsStopped;
         }
 
-        private void QuickBet(int bet)
+        // ── Actions ───────────────────────────────────────────────
+
+        /// <summary>
+        /// Pulls the lever and bets the last betted amount (default 50G).
+        /// </summary>
+        public void OnLeverClicked()
         {
             if (_isSpinning) return;
-            _model.SetBetDirect(bet);
-            RequestSpin();
+            if (rulesPopupPanel != null && rulesPopupPanel.activeSelf) return;
+
+            StartSpin(_lastBet);
         }
 
-        private void RequestSpin()
+        /// <summary>
+        /// Selects a bet from the Quick Bet menu, updates last bet, and spins.
+        /// </summary>
+        public void OnQuickBetClicked(int betAmount)
         {
             if (_isSpinning) return;
-            if (!_model.IsFreeSpinsActive && _model.Balance < _model.CurrentBet)
+            if (rulesPopupPanel != null && rulesPopupPanel.activeSelf) return;
+
+            _lastBet = betAmount;
+            StartSpin(_lastBet);
+        }
+
+        public void ToggleQuickBetMenu()
+        {
+            if (quickBetPanel != null)
+                quickBetPanel.SetActive(!quickBetPanel.activeSelf);
+        }
+
+        public void CloseRulesPopup() => SetPopupActive(rulesPopupPanel, false);
+        public void CloseWinPopup() => SetPopupActive(winPopupPanel, false);
+
+        // ── Spin Flow ─────────────────────────────────────────────
+
+        private void StartSpin(int bet)
+        {
+            if (_isSpinning) return;
+
+            bool isFreeSpin = _freeSpinsRemaining > 0;
+            if (!isFreeSpin && _balance < bet)
             {
-                uiView?.SetStatusMessage("OUT OF CREDITS! CLICK RELOAD TO PLAY.");
+                SetStatus("OUT OF CREDITS! CLICK RELOAD.");
                 return;
             }
 
             _isSpinning = true;
-            _model.SetState(SlotGameState.Spinning);
-            _model.TryDeductBet();
+            _currentBet = bet;
 
-            audioService?.PlayLeverPull();
-            audioService?.PlaySpinLoop();
-            machineView?.TriggerLeverPull();
+            if (isFreeSpin)
+                _freeSpinsRemaining--;
+            else
+            {
+                _balance -= _currentBet;
+                UpdateBalanceUI();
+            }
 
-            uiView?.UpdateWin(0, false);
-            uiView?.SetControlsInteractable(false, false);
-            string msg = _model.IsFreeSpinsActive
-                ? $"FREE SPIN ({_model.FreeSpinsRemaining} LEFT) — 2x MULTIPLIER!"
-                : "SPINNING... GOOD LUCK!";
-            uiView?.SetStatusMessage(msg);
+            StartCoroutine(LeverPullRoutine());
+            if (audioService != null)
+            {
+                audioService.PlayLeverPull();
+                audioService.PlaySpinLoop();
+            }
 
-            var targets = _rng.GenerateSpinResult(reelsManager.Reels.Count, symbols);
-            reelsManager.SpinAll(targets);
+            if (winText != null) winText.gameObject.SetActive(false);
+
+            SetStatus(isFreeSpin
+                ? $"FREE SPIN ({_freeSpinsRemaining} LEFT) - 2X MULTIPLIER!"
+                : "SPINNING... GOOD LUCK!");
+
+            if (reelsManager != null)
+            {
+                var outcome = _rng.GenerateSpinResult(reelsManager.Reels.Count, symbols);
+                reelsManager.SpinAll(outcome);
+            }
         }
 
         private void OnAllReelsStopped(SymbolType[] outcome)
         {
-            audioService?.StopSpinLoop();
-            _model.SetState(SlotGameState.Evaluating);
+            if (audioService != null)
+                audioService.StopSpinLoop();
 
-            var result = _evaluator.Evaluate(outcome, _model.CurrentBet, _model.IsFreeSpinsActive, payoutTable);
+            bool wasFreeSpin = _freeSpinsRemaining > 0;
+            var result = _evaluator.Evaluate(outcome, _currentBet, wasFreeSpin, payoutTable);
 
-            if (!result.IsWin)
+            if (result.IsWin)
             {
-                uiView?.SetStatusMessage(_model.IsFreeSpinsActive ? "NO WIN — ROLLING AGAIN..." : "NO WIN. TRY AGAIN!");
+                _balance += result.PayoutCredits;
+                UpdateBalanceUI();
+                SetStatus(result.WinDescription);
+
+                if (winText != null)
+                {
+                    winText.text = $"+{result.PayoutCredits:N0}";
+                    winText.gameObject.SetActive(true);
+                }
+
+                if (reelsManager != null)
+                {
+                    float duration = gameConfig != null ? gameConfig.WinHighlightDuration : 1.2f;
+                    reelsManager.HighlightWinningLine(GetSymbolColor(result.WinningSymbol), duration);
+                }
+
+                if (audioService != null)
+                    audioService.PlayWin(result.Tier);
+
+                if (result.IsJackpot || result.IsFreeSpinsTriggered || result.Tier == WinTier.BigWin)
+                {
+                    ShowWinPopup(result);
+                    if (result.IsFreeSpinsTriggered)
+                        _freeSpinsRemaining += result.FreeSpinsAwarded;
+                }
             }
             else
             {
-                _model.AddPayout(result.PayoutCredits);
-                uiView?.SetStatusMessage(result.WinDescription);
-                uiView?.UpdateWin(result.PayoutCredits);
-
-                // Highlight winning cells
-                Color highlight = GetSymbolColor(result.WinningSymbol);
-                reelsManager.HighlightWinningLine(highlight, gameConfig.WinHighlightDuration);
-                audioService?.PlayWin(result.Tier);
-
-                // Popup for big wins / jackpot / free spins
-                if (result.IsJackpot || result.IsFreeSpinsTriggered || result.Tier == WinTier.BigWin)
-                {
-                    string title = result.IsJackpot ? "JACKPOT!" : result.IsFreeSpinsTriggered ? "BELL BONUS!" : "BIG WIN!";
-                    string desc = result.IsFreeSpinsTriggered
-                        ? $"3 BELLS! YOU WON {result.FreeSpinsAwarded} FREE SPINS WITH 2X PAYOUTS!"
-                        : result.WinDescription;
-                    uiView?.ShowWinPopup(title, result.PayoutCredits, desc);
-
-                    if (result.IsFreeSpinsTriggered)
-                        _model.AddFreeSpins(result.FreeSpinsAwarded);
-                }
+                SetStatus(wasFreeSpin ? "NO WIN - ROLLING AGAIN..." : "NO WIN. TRY AGAIN!");
             }
 
             _isSpinning = false;
 
-            if (_model.IsFreeSpinsActive)
-            {
-                _model.SetState(SlotGameState.FreeSpins);
-                if (_autoSpinCoroutine != null) StopCoroutine(_autoSpinCoroutine);
-                _autoSpinCoroutine = StartCoroutine(AutoFreeSpin());
-            }
-            else
-            {
-                _model.SetState(SlotGameState.Idle);
-                uiView?.SetControlsInteractable(true, true);
-            }
+            if (_freeSpinsRemaining > 0)
+                StartCoroutine(AutoFreeSpinRoutine());
         }
 
-        private IEnumerator AutoFreeSpin()
+        private IEnumerator AutoFreeSpinRoutine()
         {
-            yield return new WaitForSeconds(gameConfig.FreeSpinDelay);
-            RequestSpin();
+            float delay = gameConfig != null ? gameConfig.FreeSpinDelay : 1.0f;
+            yield return new WaitForSeconds(delay);
+            StartSpin(_currentBet);
         }
 
-        private void ResetCredits()
+        private IEnumerator LeverPullRoutine()
         {
-            audioService?.PlayButtonClick();
-            _model.ResetBalance(gameConfig.StartingBalance);
-            uiView?.SetStatusMessage("CREDITS RELOADED! READY TO PLAY.");
-            uiView?.SetControlsInteractable(true, true);
+            if (_isLeverPulling) yield break;
+            _isLeverPulling = true;
+
+            if (leverImage != null && leverDownSprite != null)
+                leverImage.sprite = leverDownSprite;
+
+            yield return new WaitForSeconds(0.14f);
+
+            if (leverImage != null && leverUpSprite != null)
+                leverImage.sprite = leverUpSprite;
+
+            yield return new WaitForSeconds(0.08f);
+            _isLeverPulling = false;
         }
 
-        private Color GetSymbolColor(SymbolType? symbolType)
+        // ── Helpers ───────────────────────────────────────────────
+
+        private void UpdateBalanceUI()
         {
-            if (!symbolType.HasValue) return Color.yellow;
+            if (balanceText != null)
+                balanceText.text = $"{_balance:N0}G";
+        }
+
+        private void SetStatus(string message)
+        {
+            if (statusText != null)
+                statusText.text = message;
+        }
+
+        private void SetPopupActive(GameObject popup, bool active)
+        {
+            if (popup != null) popup.SetActive(active);
+        }
+
+        private void ShowWinPopup(PayoutResult result)
+        {
+            if (winPopupPanel == null) return;
+
+            string title = result.IsJackpot ? "JACKPOT!" : result.IsFreeSpinsTriggered ? "BELL BONUS!" : "BIG WIN!";
+            string desc = result.IsFreeSpinsTriggered
+                ? $"3 BELLS! {result.FreeSpinsAwarded} FREE SPINS WITH 2X PAYOUTS!"
+                : result.WinDescription;
+
+            if (winPopupTitle != null) winPopupTitle.text = title;
+            if (winPopupAmount != null) winPopupAmount.text = $"+{result.PayoutCredits:N0} CREDITS";
+            if (winPopupDesc != null) winPopupDesc.text = desc;
+
+            winPopupPanel.SetActive(true);
+        }
+
+        private Color GetSymbolColor(SymbolType? type)
+        {
+            if (!type.HasValue) return Color.yellow;
             foreach (var s in symbols)
-                if (s.SymbolType == symbolType.Value) return s.ThemeColor;
+                if (s != null && s.SymbolType == type.Value) return s.ThemeColor;
             return Color.yellow;
         }
     }

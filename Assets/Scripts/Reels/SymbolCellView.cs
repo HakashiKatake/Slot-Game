@@ -6,12 +6,12 @@ using SlotGame.Core;
 namespace SlotGame.Reels
 {
     /// <summary>
-    /// Represents an individual symbol item inside a reel column.
-    /// Manages the visual display, sprite assignment, and win highlight animation.
+    /// Displays a single symbol sprite within a reel column.
+    /// Handles visual updates and win celebration animations.
     /// </summary>
+    [RequireComponent(typeof(RectTransform))]
     public class SymbolCellView : MonoBehaviour
     {
-        [Header("Components")]
         [SerializeField] private Image symbolImage;
         [SerializeField] private RectTransform rectTransform;
 
@@ -19,21 +19,22 @@ namespace SlotGame.Reels
         public RectTransform RectTransform => rectTransform != null ? rectTransform : (rectTransform = GetComponent<RectTransform>());
 
         private Coroutine _highlightCoroutine;
-        private Vector3 _originalScale = Vector3.one;
+        private Vector3 _baseScale = Vector3.one;
 
         private void Awake()
         {
             if (rectTransform == null)
-            {
                 rectTransform = GetComponent<RectTransform>();
-            }
+
             if (symbolImage == null)
-            {
                 symbolImage = GetComponentInChildren<Image>();
-            }
-            _originalScale = RectTransform.localScale;
+
+            _baseScale = RectTransform.localScale;
         }
 
+        /// <summary>
+        /// Sets the active symbol and updates the display sprite.
+        /// </summary>
         public void SetSymbol(SymbolDataSO data)
         {
             if (data == null) return;
@@ -47,23 +48,18 @@ namespace SlotGame.Reels
             }
         }
 
-        public void SetSymbolDirect(SymbolType type, Sprite sprite)
-        {
-            CurrentSymbol = type;
-            if (symbolImage != null)
-            {
-                symbolImage.sprite = sprite;
-                symbolImage.enabled = true;
-                symbolImage.color = Color.white;
-            }
-        }
-
-        public void PlayWinHighlight(Color highlightColor, float duration = 1.2f)
+        /// <summary>
+        /// Plays a pulsing color and scale animation when this symbol is part of a win.
+        /// </summary>
+        public void PlayWinHighlight(Color color, float duration = 1.2f)
         {
             StopHighlight();
-            _highlightCoroutine = StartCoroutine(HighlightRoutine(highlightColor, duration));
+            _highlightCoroutine = StartCoroutine(HighlightRoutine(color, duration));
         }
 
+        /// <summary>
+        /// Resets the cell scale and color back to standard idle state.
+        /// </summary>
         public void StopHighlight()
         {
             if (_highlightCoroutine != null)
@@ -71,32 +67,28 @@ namespace SlotGame.Reels
                 StopCoroutine(_highlightCoroutine);
                 _highlightCoroutine = null;
             }
+
             if (symbolImage != null)
-            {
                 symbolImage.color = Color.white;
-            }
+
             if (RectTransform != null)
-            {
-                RectTransform.localScale = _originalScale;
-            }
+                RectTransform.localScale = _baseScale;
         }
 
-        private IEnumerator HighlightRoutine(Color highlightColor, float duration)
+        private IEnumerator HighlightRoutine(Color color, float duration)
         {
             float elapsed = 0f;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                // Pulsing bounce scale and color flash
-                float pulse = Mathf.PingPong(elapsed * 6f, 1f);
+                float pulse = Mathf.PingPong(elapsed * 5f, 1f);
+
                 if (RectTransform != null)
-                {
-                    RectTransform.localScale = _originalScale * (1f + 0.18f * pulse);
-                }
+                    RectTransform.localScale = _baseScale * (1f + 0.15f * pulse);
+
                 if (symbolImage != null)
-                {
-                    symbolImage.color = Color.Lerp(Color.white, highlightColor, pulse);
-                }
+                    symbolImage.color = Color.Lerp(Color.white, color, pulse);
+
                 yield return null;
             }
 

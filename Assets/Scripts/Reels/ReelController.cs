@@ -7,241 +7,140 @@ using SlotGame.Core;
 namespace SlotGame.Reels
 {
     /// <summary>
-    /// Controls a single physical reel column.
-    /// Manages infinite symbol wrapping, smooth anticipation pull-back, high-speed spin,
-    /// and realistic bounce-back deceleration settling precisely on the center payline.
+    /// Controls a single vertical slot reel: infinite scrolling, symbol wrapping,
+    /// and smooth deceleration to land the target symbol dead-center.
     /// </summary>
     public class ReelController : MonoBehaviour
     {
-        [Header("Reel Identification")]
         [SerializeField] private int reelIndex;
-
-        [Header("Cell Views")]
-        [Tooltip("Cells arranged vertically inside the reel. Typically 5 cells for seamless wrapping.")]
-        [SerializeField] private List<SymbolCellView> cells = new List<SymbolCellView>();
-
-        [Header("References")]
-        [SerializeField] private RectTransform reelContainer;
+        [SerializeField] private List<SymbolCellView> cells = new();
 
         public int ReelIndex => reelIndex;
-        public ReelState State { get; private set; } = ReelState.Idle;
+        public bool IsSpinning { get; private set; }
         public SymbolType CenterSymbol => _centerCell != null ? _centerCell.CurrentSymbol : SymbolType.Seven;
-        public SymbolCellView CenterCell => _centerCell;
 
         public event Action<ReelController, int, SymbolType> OnReelStopped;
 
-        private List<SymbolDataSO> _availableSymbols;
         private SlotGameConfigSO _config;
-        private Coroutine _spinCoroutine;
-        private SymbolCellView _centerCell;
-
-        private float _cellHeight = 140f;
-        private float _halfHeightThreshold;
-        private bool _stopRequested;
-        private SymbolDataSO _targetSymbolData;
+        private List<SymbolDataSO> _symbols;
         private SymbolCellView _targetCell;
+        private SymbolCellView _centerCell;
+        private SymbolDataSO _targetData;
+        private bool _stopRequested;
+        private float _cellHeight = 80f;
 
         public void Initialize(int index, List<SymbolDataSO> symbols, SlotGameConfigSO config)
         {
-            if (config == null)
-            {
-                Debug.LogError($"[ReelController] Config is null on reel {index}! Cannot initialize.");
-                return;
-            }
-
             reelIndex = index;
-            _availableSymbols = symbols;
+            _symbols = symbols;
             _config = config;
-            _cellHeight = _config.SymbolCellHeight;
-            _halfHeightThreshold = _cellHeight * _config.WrapThresholdMultiplier;
+            _cellHeight = config != null ? config.SymbolCellHeight : 80f;
 
-            if (reelContainer == null)
+            if (cells.Count == 0)
+                cells.AddRange(GetComponentsInChildren<SymbolCellView>());
+
+            // Position cells vertically: ... -80, 0 (center), +80 ...
+            int mid = cells.Count / 2;
+            for (int i = 0; i < cells.Count; i++)
             {
-                reelContainer = GetComponent<RectTransform>();
-            }
-
-            SetupInitialLayout();
-        }
-
-        private void SetupInitialLayout()
-        {
-            if (cells == null || cells.Count == 0)
-            {
-                cells = new List<SymbolCellView>(GetComponentsInChildren<SymbolCellView>());
-            }
-
-            // Positions: [-2, -1, 0, 1, 2] * cellHeight
-            int count = cells.Count;
-            int mid = count / 2;
-
-            for (int i = 0; i < count; i++)
-            {
-                int offsetFromMid = i - mid;
-                float y = offsetFromMid * _cellHeight;
-                cells[i].RectTransform.anchoredPosition = new Vector2(0f, y);
-
-                if (i == mid)
-                {
-                    _centerCell = cells[i];
-                }
-
-                // Populate with diverse initial symbols
-                if (_availableSymbols != null && _availableSymbols.Count > 0)
-                {
-                    var symbolData = _availableSymbols[(i + reelIndex) % _availableSymbols.Count];
-                    cells[i].SetSymbol(symbolData);
-                }
+                cells[i].RectTransform.anchoredPosition = new Vector2(0f, (i - mid) * _cellHeight);
+                if (i == mid) _centerCell = cells[i];
+                if (_symbols?.Count > 0)
+                    cells[i].SetSymbol(_symbols[(i + reelIndex) % _symbols.Count]);
             }
         }
 
         public void Spin()
         {
-            if (State != ReelState.Idle) return;
-
+            if (IsSpinning) return;
             _stopRequested = false;
             _targetCell = null;
-            _targetSymbolData = null;
-
-            if (_spinCoroutine != null)
-            {
-                StopCoroutine(_spinCoroutine);
-            }
-            _spinCoroutine = StartCoroutine(SpinRoutine());
+            _targetData = null;
+            IsSpinning = true;
+            StartCoroutine(SpinRoutine());
         }
 
-        public void StopAt(SymbolType target, SymbolDataSO targetData)
+        public void StopAt(SymbolType symbol, SymbolDataSO data)
         {
-            _targetSymbolData = targetData;
+            _targetData = data;
             _stopRequested = true;
         }
 
+        public void HighlightWin(Color color, float duration) => _centerCell?.PlayWinHighlight(color, duration);
+        public void StopHighlight() => cells.ForEach(c => c.StopHighlight());
+
+        // ── Spin Animation ────────────────────────────────────────
+
         private IEnumerator SpinRoutine()
         {
-            // 1. Anticipation: Pull up slightly before rolling down
-            State = ReelState.Anticipation;
-            float antDist = _config.AnticipationDistance;
-            float antDur = _config.AnticipationDuration;
-            float elapsed = 0f;
+            float speed = _config != null ? _config.SpinSpeed : 1600f;
+            float wrapLimit = _cellHeight * 2.5f;
 
-            Vector2[] startPositions = new Vector2[cells.Count];
-            for (int i = 0; i < cells.Count; i++)
-            {
-                startPositions[i] = cells[i].RectTransform.anchoredPosition;
-            }
-
-            while (elapsed < antDur)
-            {
-                elapsed += Time.deltaTime;
-                float progress = Mathf.Clamp01(elapsed / antDur);
-                // Ease out sine
-                float offset = Mathf.Sin(progress * Mathf.PI * 0.5f) * antDist;
-
-                for (int i = 0; i < cells.Count; i++)
-                {
-                    cells[i].RectTransform.anchoredPosition = startPositions[i] + new Vector2(0f, offset);
-                }
-                yield return null;
-            }
-
-            // 2. High-speed continuous spin
-            State = ReelState.SpinningFast;
-            float maxSpeed = _config.SpinSpeed;
-            float currentSpeed = 0f;
-            float accelRate = maxSpeed * _config.AccelerationMultiplier;
-
+            // 1. Full speed spin until stop is requested and a target cell wraps into position
             while (!_stopRequested || _targetCell == null)
             {
-                float dt = Time.deltaTime;
-                currentSpeed = Mathf.MoveTowards(currentSpeed, maxSpeed, accelRate * dt);
-                MoveAndWrapCells(currentSpeed * dt);
+                ScrollCells(speed * Time.deltaTime, wrapLimit);
                 yield return null;
             }
 
-            // 3. Stopping phase: Decelerate target cell smoothly towards center (y = 0)
-            State = ReelState.Stopping;
-            float stopDuration = _config.StopDuration;
-            float stopElapsed = 0f;
+            // 2. Smooth deceleration: target cell glides from its current position to y = 0
+            float startY = _targetCell.RectTransform.anchoredPosition.y;
+            float stopDuration = _config != null ? _config.StopDuration : 0.35f;
+            float elapsed = 0f;
 
-            // Distance the target cell must travel to reach y = 0
-            float initialTargetY = _targetCell.RectTransform.anchoredPosition.y;
-
-            while (stopElapsed < stopDuration)
+            while (elapsed < stopDuration)
             {
-                stopElapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(stopElapsed / stopDuration);
-                // Ease out cubic
-                float easeOut = 1f - Mathf.Pow(1f - t, 3f);
-                float currentTargetY = Mathf.Lerp(initialTargetY, 0f, easeOut);
-                float deltaY = currentTargetY - _targetCell.RectTransform.anchoredPosition.y;
-
-                ApplyDeltaToAllCells(deltaY);
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / stopDuration);
+                float easeOut = 1f - (1f - t) * (1f - t) * (1f - t); // Cubic ease out
+                float desiredY = Mathf.Lerp(startY, 0f, easeOut);
+                ShiftCells(desiredY - _targetCell.RectTransform.anchoredPosition.y);
                 yield return null;
             }
 
-            // 4. Juicy Bounce / Overshoot Phase
-            State = ReelState.Bouncing;
-            float bounceDist = _config.BounceOvershootDistance;
-            float bounceDur = _config.BounceDuration;
-            float bounceElapsed = 0f;
-
-            while (bounceElapsed < bounceDur)
-            {
-                bounceElapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(bounceElapsed / bounceDur);
-                // Elastic damped sine: overshoot downwards then bounce back to 0
-                float bounceOffset = -Mathf.Sin(t * Mathf.PI) * (1f - t) * bounceDist;
-                float currentTargetY = bounceOffset;
-                float deltaY = currentTargetY - _targetCell.RectTransform.anchoredPosition.y;
-
-                ApplyDeltaToAllCells(deltaY);
-                yield return null;
-            }
-
-            // 5. Final Snap & Settlement
-            SnapCellsToGrid();
+            // 3. Align all cells symmetrically around center cell (y = 0)
+            AlignGrid();
             _centerCell = _targetCell;
-            State = ReelState.Idle;
+            IsSpinning = false;
 
             OnReelStopped?.Invoke(this, reelIndex, _centerCell.CurrentSymbol);
         }
 
-        private void MoveAndWrapCells(float deltaY)
+        private void ScrollCells(float distance, float wrapLimit)
         {
+            float topY = float.MinValue;
             for (int i = 0; i < cells.Count; i++)
             {
-                var cell = cells[i];
-                var pos = cell.RectTransform.anchoredPosition;
-                pos.y -= deltaY;
+                float y = cells[i].RectTransform.anchoredPosition.y;
+                if (y > topY) topY = y;
+            }
 
-                // When cell falls below the bottom threshold, wrap it to the top
-                if (pos.y < -_halfHeightThreshold)
+            for (int i = 0; i < cells.Count; i++)
+            {
+                var pos = cells[i].RectTransform.anchoredPosition;
+                pos.y -= distance;
+
+                if (pos.y < -wrapLimit)
                 {
-                    float highestY = GetHighestCellY();
-                    pos.y = highestY + _cellHeight;
+                    pos.y = topY + _cellHeight;
+                    topY = pos.y;
 
-                    // If a stop was requested and we haven't designated a target cell yet,
-                    // this cell wrapping into the top position becomes our landing target!
-                    if (_stopRequested && _targetCell == null && _targetSymbolData != null)
+                    if (_stopRequested && _targetCell == null && _targetData != null)
                     {
-                        _targetCell = cell;
-                        cell.SetSymbol(_targetSymbolData);
+                        _targetCell = cells[i];
+                        cells[i].SetSymbol(_targetData);
                     }
-                    else
+                    else if (_symbols?.Count > 0)
                     {
-                        // Randomize intermediate symbols for spinning blur
-                        if (_availableSymbols != null && _availableSymbols.Count > 0)
-                        {
-                            int randIdx = UnityEngine.Random.Range(0, _availableSymbols.Count);
-                            cell.SetSymbol(_availableSymbols[randIdx]);
-                        }
+                        cells[i].SetSymbol(_symbols[UnityEngine.Random.Range(0, _symbols.Count)]);
                     }
                 }
 
-                cell.RectTransform.anchoredPosition = pos;
+                cells[i].RectTransform.anchoredPosition = pos;
             }
         }
 
-        private void ApplyDeltaToAllCells(float deltaY)
+        private void ShiftCells(float deltaY)
         {
             for (int i = 0; i < cells.Count; i++)
             {
@@ -251,49 +150,21 @@ namespace SlotGame.Reels
             }
         }
 
-        private float GetHighestCellY()
-        {
-            float maxY = float.MinValue;
-            for (int i = 0; i < cells.Count; i++)
-            {
-                float y = cells[i].RectTransform.anchoredPosition.y;
-                if (y > maxY) maxY = y;
-            }
-            return maxY;
-        }
-
-        private void SnapCellsToGrid()
+        private void AlignGrid()
         {
             if (_targetCell == null) return;
+            _targetCell.RectTransform.anchoredPosition = Vector2.zero;
 
-            // Target cell snaps exactly to y = 0
-            _targetCell.RectTransform.anchoredPosition = new Vector2(0f, 0f);
+            int targetIndex = cells.IndexOf(_targetCell);
+            int count = cells.Count;
+            int mid = count / 2;
 
-            // Other cells snap relative to target cell
-            for (int i = 0; i < cells.Count; i++)
+            for (int i = 0; i < count; i++)
             {
-                if (cells[i] == _targetCell) continue;
-
-                // Round to nearest multiple of _cellHeight
-                float rawY = cells[i].RectTransform.anchoredPosition.y;
-                float snappedY = Mathf.Round(rawY / _cellHeight) * _cellHeight;
-                cells[i].RectTransform.anchoredPosition = new Vector2(0f, snappedY);
-            }
-        }
-
-        public void HighlightWin(Color color, float duration)
-        {
-            if (_centerCell != null)
-            {
-                _centerCell.PlayWinHighlight(color, duration);
-            }
-        }
-
-        public void StopHighlight()
-        {
-            for (int i = 0; i < cells.Count; i++)
-            {
-                cells[i].StopHighlight();
+                int offset = i - targetIndex;
+                while (offset > mid) offset -= count;
+                while (offset < -mid) offset += count;
+                cells[i].RectTransform.anchoredPosition = new Vector2(0f, offset * _cellHeight);
             }
         }
     }
