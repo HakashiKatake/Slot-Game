@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5541023514399954468
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2541754574650389172}
+  - component: {fileID: 4727245415026505417}
+  m_Layer: 0
+  m_Name: SlotGamePresenter
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2541754574650389172
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5541023514399954468}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4727245415026505417
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5541023514399954468}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 60a2439b738d843ae829b2b58d0d1bf7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SlotGame.Controllers.SlotMachinePresenter
+  gameConfig: {fileID: 11400000, guid: 932c837f2fb284cdc907bbfee655e632, type: 2}
+  payoutTable: {fileID: 11400000, guid: 5c0c3f281a3c045e880f34059532b69c, type: 2}
+  symbols:
+  - {fileID: 11400000, guid: 1057d5407090a4a0985d031ce22683af, type: 2}
+  - {fileID: 11400000, guid: adaee9db0de874ef5a8ac989df60755e, type: 2}
+  - {fileID: 11400000, guid: 2c722ee6526f946f88cfb208a028f4e9, type: 2}
+  - {fileID: 11400000, guid: 5a7b078a8c962400d9e9a86d75b029ae, type: 2}
+  startingBalance: 1000
+  defaultBet: 50
+  reelsManager: {fileID: 0}
+  leverButton: {fileID: 0}
+  leverImage: {fileID: 0}
+  leverUpSprite: {fileID: 1864720231984191186, guid: 923a428f8c934472c95e3e89ed620a98, type: 3}
+  leverDownSprite: {fileID: -6621993631329932962, guid: 25cd84a3536654a9eb26a5bb8f7d34f8, type: 3}
+  balanceText: {fileID: 0}
+  statusText: {fileID: 0}
+  winText: {fileID: 0}
+  quickBetPanel: {fileID: 0}
+  quickBet10Btn: {fileID: 0}
+  quickBet50Btn: {fileID: 0}
+  quickBet100Btn: {fileID: 0}
+  quickBetExitBtn: {fileID: 0}
+  rulesPopupPanel: {fileID: 0}
+  rulesCloseBtn: {fileID: 0}
+  winPopupPanel: {fileID: 0}
+  winPopupTitle: {fileID: 0}
+  winPopupAmount: {fileID: 0}
+  winPopupDesc: {fileID: 0}
+  winPopupCollectBtn: {fileID: 0}
+  audioService: {fileID: 0}
