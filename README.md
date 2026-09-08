@@ -1,4 +1,4 @@
-# 🎰 Classic Retro Slot Machine Game (Unity)
+# Classic Retro Slot Machine Game (Unity)
 
 A high-performance, polished, and responsive 3-reel retro slot machine game built in **Unity 6 (6000.4.10f1)** using modern **C# OOP architecture**, **Text Mesh Pro**, and **Universal Render Pipeline (URP 2D)**.
 
@@ -6,7 +6,7 @@ Direct play using : https://slot-game-wheat.vercel.app/
 
 ---
 
-## 🎮 Game Overview & Features
+## Game Overview & Features
 
 ### Core Game Loop
 - **3-Reel Classic Mechanism**: Features 3 physical reels with authentic continuous vertical scrolling, symbol wrapping, and smooth deceleration.
@@ -27,7 +27,7 @@ Direct play using : https://slot-game-wheat.vercel.app/
   - Full-screen animated celebration modal for **Jackpot (3x Sevens)**, **Bell Bonus (3x Bells)**, or **Big Wins**.
   - Interactive **Collect** button to claim credits and return to the game.
 
-### 🌟 Bonus Features
+### Bonus Features
 1. **Bell Bonus & Free Spins**:
    - Hitting **3 Bells** awards **5 Free Spins**!
    - Free spins require **0 credits** and apply an automatic **2x win multiplier** to all payouts.
@@ -43,7 +43,7 @@ Direct play using : https://slot-game-wheat.vercel.app/
 
 ---
 
-## 📐 Payout Table
+## Payout Table
 
 | Combination | Multiplier | Feature / Tier |
 | :--- | :---: | :--- |
@@ -56,7 +56,7 @@ Direct play using : https://slot-game-wheat.vercel.app/
 
 ---
 
-## 🛠️ Project Architecture & Design Principles
+## Project Architecture & Design Principles
 
 The codebase was refactored and streamlined for maximum readability, maintainability, and clean Object-Oriented design:
 
@@ -87,7 +87,7 @@ Assets/
 
 ---
 
-## 🚀 How to Run
+## How to Run
 
 ### In the Unity Editor:
 1. Open the project in **Unity 6 (6000.4.10f1)** or higher.
@@ -104,5 +104,5 @@ Assets/
 
 ---
 
-## 🎨 Asset Credits
+## Asset Credits
 All visual sprites, fonts, and sound effects are provided per the assignment requirements and properly configured in Unity's 2D Sprite Editor and Audio Importer.
